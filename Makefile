@@ -30,3 +30,6 @@ test:
 
 release: fmt lint test build
 	cargo build --release
+
+post:
+	@curl -X POST localhost:3000/metric -H "Content-Type: application/json" -d $$(./scripts/generate_datum.sh)
