@@ -1,8 +1,7 @@
 use std::net::SocketAddr;
-use std::ops::DerefMut;
 
 use axum::{extract::Extension, extract::Json, handler::get, handler::post, response, Router};
-use redis::{Client, Connection};
+use redis::{Client, Commands};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tower_http::add_extension::AddExtensionLayer;
@@ -14,10 +13,7 @@ use tokio::sync::Mutex;
 async fn main() {
     let redis_conn_url = format!("redis://:{}@{}", "password", "127.0.0.1:6379");
     let conn = Arc::new(Mutex::new(
-        Client::open(redis_conn_url)
-            .expect("invalid connection URL")
-            .get_connection()
-            .expect("failed to connect to Redis"),
+        Client::open(redis_conn_url).expect("invalid connection URL"),
     ));
     let state = Arc::clone(&conn);
 
@@ -44,33 +40,30 @@ struct Metric {
     value: String,
 }
 
-type SharedState = Arc<Mutex<Connection>>;
+type RedisState = Arc<Mutex<Client>>;
 
 async fn post_metric(
-    conn: Extension<SharedState>,
+    client: Extension<RedisState>,
     Json(metric): Json<Metric>,
 ) -> response::Json<Value> {
-    let mut guard = conn.lock().await;
+    let mut conn = client
+        .lock()
+        .await
+        .get_connection()
+        .expect("failed to connect to Redis");
+
     let zvalue = format!(
         "{{\"timestamp\":{}, \"value\": \"{}\"}}",
         metric.timestamp.to_string(),
         metric.value
     );
-
-    let _: () = redis::cmd("ZADD")
-        .arg(metric.id.clone())
-        .arg(metric.timestamp)
-        .arg(zvalue)
-        .query(guard.deref_mut())
+    conn.zadd::<&str, i64, String, i64>(&*metric.id.clone(), zvalue, metric.timestamp)
         .expect("failed to execute ZADD");
 
-    let values: Vec<String> = redis::cmd("ZRANGE")
-        .arg(metric.id.clone())
-        .arg(0)
-        .arg(-1)
-        .query(guard.deref_mut())
+    let values = conn
+        .zrange::<&str, Vec<String>>(&*metric.id, 0, -1)
         .expect("failed to execute ZRANGE");
-    println!("value for 'sample_key' = {:#?}", values);
 
+    println!("zvalues for {} = {:#?}", &*metric.id, values);
     response::Json(json!({ "result": "ok" }))
 }
