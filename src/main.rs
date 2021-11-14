@@ -12,17 +12,18 @@ use tokio::sync::Mutex;
 #[tokio::main]
 async fn main() {
     let redis_conn_url = format!("redis://:{}@{}", "password", "127.0.0.1:6379");
-    let conn = Arc::new(Mutex::new(
+    let client = Arc::new(Mutex::new(
         Client::open(redis_conn_url).expect("invalid connection URL"),
     ));
-    let state = Arc::clone(&conn);
 
     let app = Router::new()
         .route("/", get(handler))
         .route("/metric", post(post_metric))
-        .layer(AddExtensionLayer::new(state));
+        .layer(AddExtensionLayer::new(client));
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+
     println!("listening on {}", addr);
+
     axum::Server::bind(&addr)
         .serve(app.into_make_service())
         .await
