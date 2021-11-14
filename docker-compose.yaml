@@ -1,0 +1,16 @@
+version: "3.9"
+
+services:
+  redis:
+    image: "rust-axum-redis:latest"
+    build:
+      context: .
+      dockerfile: ./build/Dockerfile
+    environment:
+      REDISCLI_AUTH: password
+    volumes:
+      - ./data/metrics_data_redis:/data
+    container_name: rust-redis-sample
+    ports:
+      - "6379:6379"
+    restart: always

@@ -1,0 +1,17 @@
+[package]
+name = "rust-axum-redis-example"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+axum = "0.2.5"
+hyper = { version = "0.14", features = ["full"] }
+tower = "0.4.10"
+tower-http = "0.1.1"
+tokio = { version = "1.12.0", features = ["full"] }
+redis = {version = "0.21.4", features = ["tokio-comp", "connection-manager"]}
+chrono = "0.4.19"
+serde = { version = " 1.0.130", features = ["derive"] }
+serde_json = { version = "1.0.68", default-features = false, features = ["alloc"] }
